@@ -24,18 +24,24 @@ const ServiceNowModule = ({ onMinimize }: ServiceNowModuleProps) => {
   const [customToken, setCustomToken] = useState(() => localStorage.getItem("customToken") || "");
   const [inputUserId, setInputUserId] = useState(userId);
   const [inputToken, setInputToken] = useState(customToken);
+  const [error, setError] = useState<string | null>(null);
+  const [showConfig, setShowConfig] = useState(() => !userId || !customToken);
+  const [incidentCount, setIncidentCount] = useState<string>('NA');
+  const [incidentClickCount, setIncidentClickCount] = useState<number>(0);
 
   useEffect(() => {
     localStorage.setItem("customUserId", userId);
     localStorage.setItem("customToken", customToken);
-    loadTickets(); // Fetch incidents with new credentials
+    if (userId && customToken) {
+      loadTickets();
+    }
     // eslint-disable-next-line
   }, [userId, customToken]);
 
   const loadTickets = async () => {
     setIsLoading(true);
+    setError(null);
     try {
-      // Use custom API for incidents, ServiceNow for others
       const [incidents, requests, changes] = await Promise.all([
         serviceNowAPI.fetchCustomIncidents(userId, customToken),
         serviceNowAPI.fetchRequests(),
@@ -44,8 +50,11 @@ const ServiceNowModule = ({ onMinimize }: ServiceNowModuleProps) => {
       setTickets([...incidents, ...requests, ...changes]);
       setLastUpdated(new Date());
       setIsApiConfigured(serviceNowAPI.isConfigured());
-    } catch (error) {
-      console.error('Error loading ServiceNow tickets:', error);
+      setIncidentCount(incidents.length.toString());
+      setShowConfig(false); // Hide config form after successful fetch
+    } catch (error: any) {
+      setError('Failed to fetch incidents. Please check your credentials.');
+      setIncidentCount('NA');
     } finally {
       setIsLoading(false);
     }
@@ -120,37 +129,55 @@ const ServiceNowModule = ({ onMinimize }: ServiceNowModuleProps) => {
   return (
     <>
       {/* Config Form */}
-      <div className="p-4 bg-gray-50 border-b flex gap-4 items-end">
-        <div>
-          <label className="block text-xs font-medium text-gray-700 mb-1">User ID</label>
-          <input
-            type="text"
-            value={inputUserId}
-            onChange={e => setInputUserId(e.target.value)}
-            className="border rounded px-2 py-1 text-sm"
-            placeholder="Enter User ID"
-          />
+      {showConfig && (
+        <div className="p-4 bg-gray-50 border-b flex gap-4 items-end">
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">User ID</label>
+            <input
+              type="text"
+              value={inputUserId}
+              onChange={e => setInputUserId(e.target.value)}
+              className="border rounded px-2 py-1 text-sm"
+              placeholder="Enter User ID"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Bearer Token</label>
+            <input
+              type="password"
+              value={inputToken}
+              onChange={e => setInputToken(e.target.value)}
+              className="border rounded px-2 py-1 text-sm"
+              placeholder="Enter Bearer Token"
+            />
+          </div>
+          <button
+            className="bg-ubs-red text-white px-4 py-2 rounded font-medium"
+            onClick={() => {
+              setUserId(inputUserId);
+              setCustomToken(inputToken);
+              setError(null);
+            }}
+          >
+            Submit
+          </button>
         </div>
-        <div>
-          <label className="block text-xs font-medium text-gray-700 mb-1">Bearer Token</label>
-          <input
-            type="password"
-            value={inputToken}
-            onChange={e => setInputToken(e.target.value)}
-            className="border rounded px-2 py-1 text-sm"
-            placeholder="Enter Bearer Token"
-          />
+      )}
+      {/* Error Message */}
+      {error && (
+        <div className="p-2 bg-red-100 text-red-700 border-b border-red-300 text-sm">{error}</div>
+      )}
+      {/* Show button to change credentials if config is hidden */}
+      {!showConfig && (
+        <div className="p-2 bg-gray-50 border-b flex justify-end">
+          <button
+            className="text-xs text-blue-600 underline"
+            onClick={() => setShowConfig(true)}
+          >
+            Change Credentials
+          </button>
         </div>
-        <button
-          className="bg-ubs-red text-white px-4 py-2 rounded font-medium"
-          onClick={() => {
-            setUserId(inputUserId);
-            setCustomToken(inputToken);
-          }}
-        >
-          Submit
-        </button>
-      </div>
+      )}
       <Card className="h-full flex flex-col bg-white border border-gray-200 overflow-hidden">
         <CardHeader className="pb-2 bg-white flex-shrink-0 border-b border-gray-200">
           <div className="flex items-center justify-between">
@@ -158,9 +185,23 @@ const ServiceNowModule = ({ onMinimize }: ServiceNowModuleProps) => {
               <CardTitle className="flex items-center gap-2 text-lg font-semibold text-ubs-red font-ubs-headline">
                 <Ticket className="h-5 w-5" />
                 ServiceNow Tickets
-                <Badge className="bg-red-600 text-white">
-                  {tickets.length} active
+                <Badge
+                  className="bg-red-600 text-white cursor-pointer"
+                  onClick={() => setIncidentClickCount(c => c + 1)}
+                  title="Click to increment count"
+                >
+                  {incidentCount} active
                 </Badge>
+                <span className="text-xs text-gray-500 ml-2">
+                  Clicked: {incidentClickCount} times
+                  <button
+                    className="ml-2 px-2 py-0.5 bg-gray-200 text-xs rounded hover:bg-gray-300 border border-gray-300"
+                    onClick={() => setIncidentClickCount(0)}
+                    type="button"
+                  >
+                    Reset
+                  </button>
+                </span>
                 {isApiConfigured && (
                   <Badge className="bg-green-600 text-white text-xs">
                     API Connected
