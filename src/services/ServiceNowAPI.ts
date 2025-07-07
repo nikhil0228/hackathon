@@ -246,6 +246,40 @@ class ServiceNowAPI {
       }
     ];
   }
+
+  // Fetch incidents from custom API
+  async fetchCustomIncidents(userId: string, token: string): Promise<ServiceNowTicket[]> {
+    const url = `https://cirruspl-ayhub-svcs-prod-neu-incident-mgmt.azurewebsites.net/api/assignedincidents?userId=${userId}`;
+    try {
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        }
+      });
+      if (!response.ok) {
+        throw new Error(`Custom Incident API error: ${response.status}`);
+      }
+      const data = await response.json();
+      // Map the custom API response to ServiceNowTicket[]
+      return (data.incidents || []).map((incident: any) => ({
+        id: incident.id,
+        number: incident.ticketNumber,
+        title: incident.shortDescription || incident.ticketNumber,
+        description: incident.description || '',
+        priority: this.mapPriority(incident.priority),
+        status: this.mapStatus(incident.status),
+        assignedTo: incident.assignedUser || 'Unassigned',
+        createdDate: incident.createDateJson || '',
+        updatedDate: '', // You can add logic to format this if available
+        category: 'Incident'
+      }));
+    } catch (error) {
+      console.error('Error fetching custom incidents:', error);
+      return [];
+    }
+  }
 }
 
 // Export singleton instance

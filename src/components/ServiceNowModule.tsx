@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Ticket, AlertTriangle, ChevronDown, ChevronRight, Clock, User, Minus, RefreshCw } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -21,6 +20,16 @@ const ServiceNowModule = ({ onMinimize }: ServiceNowModuleProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(new Date());
   const [isApiConfigured, setIsApiConfigured] = useState(false);
+  const [userId, setUserId] = useState(() => localStorage.getItem("customUserId") || "");
+  const [customToken, setCustomToken] = useState(() => localStorage.getItem("customToken") || "");
+
+  useEffect(() => {
+    localStorage.setItem("customUserId", userId);
+  }, [userId]);
+
+  useEffect(() => {
+    localStorage.setItem("customToken", customToken);
+  }, [customToken]);
 
   // Load tickets on component mount
   useEffect(() => {
@@ -30,8 +39,13 @@ const ServiceNowModule = ({ onMinimize }: ServiceNowModuleProps) => {
   const loadTickets = async () => {
     setIsLoading(true);
     try {
-      const allTickets = await serviceNowAPI.fetchAllTickets();
-      setTickets(allTickets);
+      // Use custom API for incidents, ServiceNow for others
+      const [incidents, requests, changes] = await Promise.all([
+        serviceNowAPI.fetchCustomIncidents(userId, customToken),
+        serviceNowAPI.fetchRequests(),
+        serviceNowAPI.fetchChanges()
+      ]);
+      setTickets([...incidents, ...requests, ...changes]);
       setLastUpdated(new Date());
       setIsApiConfigured(serviceNowAPI.isConfigured());
     } catch (error) {
@@ -108,104 +122,129 @@ const ServiceNowModule = ({ onMinimize }: ServiceNowModuleProps) => {
   const changes = tickets.filter(t => t.category === 'Change');
 
   return (
-    <Card className="h-full flex flex-col bg-white border border-gray-200 overflow-hidden">
-      <CardHeader className="pb-2 bg-white flex-shrink-0 border-b border-gray-200">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <CardTitle className="flex items-center gap-2 text-lg font-semibold text-ubs-red font-ubs-headline">
-              <Ticket className="h-5 w-5" />
-              ServiceNow Tickets
-              <Badge className="bg-red-600 text-white">
-                {tickets.length} active
-              </Badge>
-              {isApiConfigured && (
-                <Badge className="bg-green-600 text-white text-xs">
-                  API Connected
+    <>
+      {/* Config Form */}
+      <div className="p-4 bg-gray-50 border-b flex gap-4 items-end">
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-1">User ID</label>
+          <input
+            type="text"
+            value={userId}
+            onChange={e => setUserId(e.target.value)}
+            className="border rounded px-2 py-1 text-sm"
+            placeholder="Enter User ID"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-1">Bearer Token</label>
+          <input
+            type="password"
+            value={customToken}
+            onChange={e => setCustomToken(e.target.value)}
+            className="border rounded px-2 py-1 text-sm"
+            placeholder="Enter Bearer Token"
+          />
+        </div>
+      </div>
+      <Card className="h-full flex flex-col bg-white border border-gray-200 overflow-hidden">
+        <CardHeader className="pb-2 bg-white flex-shrink-0 border-b border-gray-200">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2 text-lg font-semibold text-ubs-red font-ubs-headline">
+                <Ticket className="h-5 w-5" />
+                ServiceNow Tickets
+                <Badge className="bg-red-600 text-white">
+                  {tickets.length} active
                 </Badge>
-              )}
-            </CardTitle>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-2 text-xs text-ubs-medium-grey font-frutiger">
-              <Clock className="h-3 w-3" />
-              Updated: {lastUpdated.toLocaleTimeString()}
+                {isApiConfigured && (
+                  <Badge className="bg-green-600 text-white text-xs">
+                    API Connected
+                  </Badge>
+                )}
+              </CardTitle>
             </div>
-            <ServiceNowConfigDialog onConfigUpdate={handleConfigUpdate} />
-            <Button 
-              onClick={handleRefresh}
-              variant="ghost" 
-              size="sm"
-              className="h-6 w-6 p-0 hover:bg-gray-100"
-              disabled={isLoading}
-              title="Refresh tickets"
-            >
-              <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-            </Button>
-            {onMinimize && (
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 text-xs text-ubs-medium-grey font-frutiger">
+                <Clock className="h-3 w-3" />
+                Updated: {lastUpdated.toLocaleTimeString()}
+              </div>
+              <ServiceNowConfigDialog onConfigUpdate={handleConfigUpdate} />
               <Button 
-                onClick={onMinimize}
+                onClick={handleRefresh}
                 variant="ghost" 
                 size="sm"
                 className="h-6 w-6 p-0 hover:bg-gray-100"
+                disabled={isLoading}
+                title="Refresh tickets"
               >
-                <Minus className="h-4 w-4" />
+                <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
               </Button>
-            )}
+              {onMinimize && (
+                <Button 
+                  onClick={onMinimize}
+                  variant="ghost" 
+                  size="sm"
+                  className="h-6 w-6 p-0 hover:bg-gray-100"
+                >
+                  <Minus className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
           </div>
-        </div>
-      </CardHeader>
-      
-      <CardContent className="flex-1 flex flex-col gap-3 overflow-hidden bg-white p-4">
-        <ScrollArea className="flex-1">
-          <div className="space-y-4 pr-2">
-            {/* Incidents Section */}
-            <Collapsible open={isIncidentsOpen} onOpenChange={setIsIncidentsOpen}>
-              <CollapsibleTrigger className="flex items-center gap-2 w-full p-3 bg-red-50 rounded-lg hover:bg-red-100 transition-colors">
-                {isIncidentsOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                <AlertTriangle className="h-4 w-4 text-red-600" />
-                <span className="font-medium text-red-800">Incidents</span>
-                <Badge className="ml-auto bg-red-600 text-white">
-                  {incidents.length}
-                </Badge>
-              </CollapsibleTrigger>
-              <CollapsibleContent className="mt-3">
-                {renderTicketList(incidents)}
-              </CollapsibleContent>
-            </Collapsible>
+        </CardHeader>
+        
+        <CardContent className="flex-1 flex flex-col gap-3 overflow-hidden bg-white p-4">
+          <ScrollArea className="flex-1">
+            <div className="space-y-4 pr-2">
+              {/* Incidents Section */}
+              <Collapsible open={isIncidentsOpen} onOpenChange={setIsIncidentsOpen}>
+                <CollapsibleTrigger className="flex items-center gap-2 w-full p-3 bg-red-50 rounded-lg hover:bg-red-100 transition-colors">
+                  {isIncidentsOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                  <AlertTriangle className="h-4 w-4 text-red-600" />
+                  <span className="font-medium text-red-800">Incidents</span>
+                  <Badge className="ml-auto bg-red-600 text-white">
+                    {incidents.length}
+                  </Badge>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="mt-3">
+                  {renderTicketList(incidents)}
+                </CollapsibleContent>
+              </Collapsible>
 
-            {/* Requests Section */}
-            <Collapsible open={isRequestsOpen} onOpenChange={setIsRequestsOpen}>
-              <CollapsibleTrigger className="flex items-center gap-2 w-full p-3 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors">
-                {isRequestsOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                <Ticket className="h-4 w-4 text-blue-600" />
-                <span className="font-medium text-blue-800">Service Requests</span>
-                <Badge className="ml-auto bg-blue-600 text-white">
-                  {requests.length}
-                </Badge>
-              </CollapsibleTrigger>
-              <CollapsibleContent className="mt-3">
-                {renderTicketList(requests)}
-              </CollapsibleContent>
-            </Collapsible>
+              {/* Requests Section */}
+              <Collapsible open={isRequestsOpen} onOpenChange={setIsRequestsOpen}>
+                <CollapsibleTrigger className="flex items-center gap-2 w-full p-3 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors">
+                  {isRequestsOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                  <Ticket className="h-4 w-4 text-blue-600" />
+                  <span className="font-medium text-blue-800">Service Requests</span>
+                  <Badge className="ml-auto bg-blue-600 text-white">
+                    {requests.length}
+                  </Badge>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="mt-3">
+                  {renderTicketList(requests)}
+                </CollapsibleContent>
+              </Collapsible>
 
-            {/* Changes Section */}
-            <Collapsible open={isChangesOpen} onOpenChange={setIsChangesOpen}>
-              <CollapsibleTrigger className="flex items-center gap-2 w-full p-3 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors">
-                {isChangesOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                <AlertTriangle className="h-4 w-4 text-purple-600" />
-                <span className="font-medium text-purple-800">Change Requests</span>
-                <Badge className="ml-auto bg-purple-600 text-white">
-                  {changes.length}
-                </Badge>
-              </CollapsibleTrigger>
-              <CollapsibleContent className="mt-3">
-                {renderTicketList(changes)}
-              </CollapsibleContent>
-            </Collapsible>
-          </div>
-        </ScrollArea>
-      </CardContent>
-    </Card>
+              {/* Changes Section */}
+              <Collapsible open={isChangesOpen} onOpenChange={setIsChangesOpen}>
+                <CollapsibleTrigger className="flex items-center gap-2 w-full p-3 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors">
+                  {isChangesOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                  <AlertTriangle className="h-4 w-4 text-purple-600" />
+                  <span className="font-medium text-purple-800">Change Requests</span>
+                  <Badge className="ml-auto bg-purple-600 text-white">
+                    {changes.length}
+                  </Badge>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="mt-3">
+                  {renderTicketList(changes)}
+                </CollapsibleContent>
+              </Collapsible>
+            </div>
+          </ScrollArea>
+        </CardContent>
+      </Card>
+    </>
   );
 };
 
