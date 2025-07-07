@@ -22,19 +22,15 @@ const ServiceNowModule = ({ onMinimize }: ServiceNowModuleProps) => {
   const [isApiConfigured, setIsApiConfigured] = useState(false);
   const [userId, setUserId] = useState(() => localStorage.getItem("customUserId") || "");
   const [customToken, setCustomToken] = useState(() => localStorage.getItem("customToken") || "");
+  const [inputUserId, setInputUserId] = useState(userId);
+  const [inputToken, setInputToken] = useState(customToken);
 
   useEffect(() => {
     localStorage.setItem("customUserId", userId);
-  }, [userId]);
-
-  useEffect(() => {
     localStorage.setItem("customToken", customToken);
-  }, [customToken]);
-
-  // Load tickets on component mount
-  useEffect(() => {
-    loadTickets();
-  }, []);
+    loadTickets(); // Fetch incidents with new credentials
+    // eslint-disable-next-line
+  }, [userId, customToken]);
 
   const loadTickets = async () => {
     setIsLoading(true);
@@ -129,8 +125,8 @@ const ServiceNowModule = ({ onMinimize }: ServiceNowModuleProps) => {
           <label className="block text-xs font-medium text-gray-700 mb-1">User ID</label>
           <input
             type="text"
-            value={userId}
-            onChange={e => setUserId(e.target.value)}
+            value={inputUserId}
+            onChange={e => setInputUserId(e.target.value)}
             className="border rounded px-2 py-1 text-sm"
             placeholder="Enter User ID"
           />
@@ -139,12 +135,21 @@ const ServiceNowModule = ({ onMinimize }: ServiceNowModuleProps) => {
           <label className="block text-xs font-medium text-gray-700 mb-1">Bearer Token</label>
           <input
             type="password"
-            value={customToken}
-            onChange={e => setCustomToken(e.target.value)}
+            value={inputToken}
+            onChange={e => setInputToken(e.target.value)}
             className="border rounded px-2 py-1 text-sm"
             placeholder="Enter Bearer Token"
           />
         </div>
+        <button
+          className="bg-ubs-red text-white px-4 py-2 rounded font-medium"
+          onClick={() => {
+            setUserId(inputUserId);
+            setCustomToken(inputToken);
+          }}
+        >
+          Submit
+        </button>
       </div>
       <Card className="h-full flex flex-col bg-white border border-gray-200 overflow-hidden">
         <CardHeader className="pb-2 bg-white flex-shrink-0 border-b border-gray-200">
