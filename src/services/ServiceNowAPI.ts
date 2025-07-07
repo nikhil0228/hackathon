@@ -247,11 +247,12 @@ class ServiceNowAPI {
     ];
   }
 
-  // Fetch incidents from custom API
+  // Fetch incidents from custom API using proxy
   async fetchCustomIncidents(userId: string, token: string): Promise<ServiceNowTicket[]> {
-    const url = `https://cirruspl-ayhub-svcs-prod-neu-incident-mgmt.azurewebsites.net/api/assignedincidents?userId=${userId}`;
+    const externalUrl = `https://cirruspl-ayhub-svcs-prod-neu-incident-mgmt.azurewebsites.net/api/assignedincidents?userId=${userId}`;
+    const proxyUrl = `http://localhost:3001/api-proxy?url=${encodeURIComponent(externalUrl)}`;
     try {
-      const response = await fetch(url, {
+      const response = await fetch(proxyUrl, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
