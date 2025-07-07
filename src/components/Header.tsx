@@ -69,7 +69,7 @@ const Header = ({ onClose, onMaximize, isMaximized }: HeaderProps) => {
             >
               <X className="h-5 w-5" />
             </button>
-            
+            {/*  */}
             <div className="mb-4">
               <h3 className="text-lg font-semibold text-ubs-black font-ubs-headline mb-2">
                 About PAL Dashboard
