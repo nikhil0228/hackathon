@@ -17,25 +17,57 @@ interface Message {
   url?: string;
 }
 
+// TypeScript compatibility for browsers/environments missing these types
+interface SpeechRecognition extends EventTarget {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  start(): void;
+  stop(): void;
+  abort(): void;
+  onaudioend: ((this: SpeechRecognition, ev: Event) => unknown) | null;
+  onaudiostart: ((this: SpeechRecognition, ev: Event) => unknown) | null;
+  onend: ((this: SpeechRecognition, ev: Event) => unknown) | null;
+  onerror: ((this: SpeechRecognition, ev: Event) => unknown) | null;
+  onnomatch: ((this: SpeechRecognition, ev: Event) => unknown) | null;
+  onresult: ((this: SpeechRecognition, ev: SpeechRecognitionEvent) => unknown) | null;
+  onsoundend: ((this: SpeechRecognition, ev: Event) => unknown) | null;
+  onsoundstart: ((this: SpeechRecognition, ev: Event) => unknown) | null;
+  onspeechend: ((this: SpeechRecognition, ev: Event) => unknown) | null;
+  onspeechstart: ((this: SpeechRecognition, ev: Event) => unknown) | null;
+  onstart: ((this: SpeechRecognition, ev: Event) => unknown) | null;
+}
+interface SpeechRecognitionEvent extends Event {
+  readonly resultIndex: number;
+  readonly results: SpeechRecognitionResultList;
+}
+
+declare global {
+  interface Window {
+    webkitSpeechRecognition: unknown;
+    SpeechRecognition: unknown;
+  }
+}
+
 const VoiceOverview = () => {
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState("");
-  const [recognition, setRecognition] = useState<any>(null);
+  const [recognition, setRecognition] = useState<SpeechRecognition | null>(null);
   const [lastUpdated, setLastUpdated] = useState(new Date());
   const geminiApiKey = "AIzaSyA_qGG7EyoIxN7NQFU2TgFBruVz4aUavlY";
 
   useEffect(() => {
     // Initialize speech recognition
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-      const SpeechRecognition = window.webkitSpeechRecognition || window.SpeechRecognition;
-      const recognitionInstance = new SpeechRecognition();
+      const SpeechRecognitionConstructor = (window.webkitSpeechRecognition || window.SpeechRecognition) as { new (): SpeechRecognition };
+      const recognitionInstance = new SpeechRecognitionConstructor();
       recognitionInstance.continuous = false;
       recognitionInstance.interimResults = false;
       recognitionInstance.lang = 'en-US';
 
-      recognitionInstance.onresult = (event: any) => {
+      recognitionInstance.onresult = (event: SpeechRecognitionEvent) => {
         const transcript = event.results[0][0].transcript;
         handleUserMessage(transcript);
       };
@@ -220,12 +252,12 @@ const VoiceOverview = () => {
   };
 
   return (
-    <Card className="h-full flex flex-col bg-white border border-gray-200 overflow-hidden">
+    <Card className="h-full flex flex-col border border-gray-200 overflow-hidden text-black font-frutiger font-light" style={{ backgroundColor: 'rgb(142,141,131)' }}>
       <CardHeader className="pb-2 bg-white flex-shrink-0">
         <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2 text-lg font-semibold text-ubs-red font-ubs-headline">
-            <img src="/UBSLOGO.png" alt="UBS Logo" className="h-6 w-auto" />
-            <span className="text-ubs-red">PAL (Personal Assistant Lite)</span>
+          <CardTitle className="flex items-center gap-2 text-lg font-semibold text-black font-frutiger">
+            {/* UBS image removed */}
+            <span className="text-black">PAL (Personal Assistant Lite)</span>
           </CardTitle>
           <div className="flex items-center gap-2 text-xs text-black">
             <Clock className="h-3 w-3" />
@@ -240,28 +272,26 @@ const VoiceOverview = () => {
             {messages.map((message) => (
               <div
                 key={message.id}
-                className={`p-2 rounded-lg text-sm font-frutiger ${
+                className={`p-2 rounded-lg text-sm font-frutiger text-black ${
                   message.isUser
-                    ? 'bg-ubs-red text-white ml-6'
+                    ? 'bg-gray-200 ml-6'
                     : message.critical 
-                      ? 'bg-red-50 border border-red-200 text-ubs-red mr-6 cursor-pointer hover:shadow-sm'
-                      : 'bg-gray-50 text-ubs-black mr-6 cursor-pointer hover:shadow-sm'
+                      ? 'bg-gray-100 border border-gray-300 mr-6 cursor-pointer hover:shadow-sm'
+                      : 'bg-white mr-6 cursor-pointer hover:shadow-sm'
                 }`}
                 onClick={() => !message.isUser && handleMessageClick(message.url)}
               >
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     {message.module && !message.isUser && (
-                      <Badge className="mb-1 text-xs bg-ubs-red text-white font-frutiger font-semibold" variant={message.critical ? "destructive" : "secondary"}>
+                      <Badge className="mb-1 text-xs bg-gray-300 text-black font-frutiger font-semibold" variant={message.critical ? "destructive" : "secondary"}>
                         {message.module.toUpperCase()}
                       </Badge>
                     )}
                     <div>{message.text}</div>
                   </div>
                 </div>
-                <div className={`text-xs mt-1 opacity-70 ${
-                  message.isUser ? 'text-gray-100' : 'text-gray-500'
-                }`}>
+                <div className="text-xs mt-1 opacity-70 text-black">
                   {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </div>
               </div>
@@ -275,9 +305,9 @@ const VoiceOverview = () => {
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
               placeholder="Ask about work overview or any question..."
-              className="text-sm bg-white border-gray-300 text-ubs-black font-frutiger"
+              className="text-sm bg-white border-gray-300 text-black font-frutiger"
             />
-            <Button type="submit" size="sm" className="bg-ubs-red hover:bg-ubs-red-dark text-white font-frutiger font-semibold">
+            <Button type="submit" size="sm" className="bg-gray-800 hover:bg-gray-900 text-white font-frutiger font-semibold">
               Send
             </Button>
           </form>
@@ -287,7 +317,7 @@ const VoiceOverview = () => {
               onClick={isListening ? stopListening : startListening}
               variant={isListening ? "destructive" : "default"}
               size="sm"
-              className="flex-1 bg-ubs-red hover:bg-ubs-red-dark text-white font-frutiger font-semibold"
+              className="flex-1 bg-gray-800 hover:bg-gray-900 text-white font-frutiger font-semibold"
             >
               {isListening ? <MicOff className="h-4 w-4 mr-2" /> : <Mic className="h-4 w-4 mr-2" />}
               {isListening ? "Stop" : "Listen"}
@@ -297,7 +327,7 @@ const VoiceOverview = () => {
               onClick={isSpeaking ? stopSpeaking : () => {}}
               variant={isSpeaking ? "destructive" : "secondary"}
               size="sm"
-              className="flex-1 bg-white border border-gray-300 text-ubs-black hover:bg-gray-50 font-frutiger font-semibold"
+              className="flex-1 bg-white border border-gray-300 text-black hover:bg-gray-50 font-frutiger font-semibold"
               disabled={!isSpeaking}
             >
               {isSpeaking ? <VolumeX className="h-4 w-4 mr-2" /> : <Volume2 className="h-4 w-4 mr-2" />}

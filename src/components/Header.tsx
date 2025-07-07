@@ -1,6 +1,6 @@
-
 import { Info, X, Maximize } from "lucide-react";
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
 
 interface HeaderProps {
   onClose?: () => void;
@@ -17,39 +17,45 @@ const Header = ({ onClose, onMaximize, isMaximized }: HeaderProps) => {
 
   return (
     <>
-      <header className="bg-ubs-red text-white px-6 py-4 flex items-center justify-between shadow-sm">
+      <header className="bg-white text-[hsl(var(--ubs-dark-grey))] px-6 py-4 flex items-center justify-between shadow-sm font-frutiger font-light" style={{ fontWeight: 300 }}>
         <div className="flex items-center">
           <img src="/UBSLOGO.png" alt="UBS Logo" className="h-8 w-auto mr-3" />
-          <div className="text-xl font-bold font-ubs-headline tracking-wide text-white">
+          <div className="text-xl font-bold font-frutiger tracking-wide text-[hsl(var(--ubs-dark-grey))]" style={{ fontWeight: 300 }}>
             
           </div>
         </div>
         
         <div className="flex items-center gap-4">
-          <button
+          <Button
             onClick={toggleInfo}
-            className="w-8 h-8 hover:bg-ubs-red-dark rounded-full flex items-center justify-center transition-colors duration-200"
-            title="Information"
+            variant="ghost"
+            size="icon"
+            aria-label="Information"
+            className="w-8 h-8"
           >
-            <Info className="h-5 w-5" />
-          </button>
+            <Info className="h-5 w-5 text-[hsl(var(--ubs-dark-grey))]" />
+          </Button>
           {onMaximize && (
-            <button
+            <Button
               onClick={onMaximize}
-              className="w-8 h-8 hover:bg-ubs-red-dark rounded-full flex items-center justify-center transition-colors duration-200"
-              title={isMaximized ? "Minimize" : "Maximize"}
+              variant="ghost"
+              size="icon"
+              aria-label={isMaximized ? "Minimize" : "Maximize"}
+              className="w-8 h-8"
             >
-              <Maximize className="h-5 w-5" />
-            </button>
+              <Maximize className="h-5 w-5 text-[hsl(var(--ubs-dark-grey))]" />
+            </Button>
           )}
           {onClose && (
-            <button
+            <Button
               onClick={onClose}
-              className="w-8 h-8 hover:bg-ubs-red-dark rounded-full flex items-center justify-center transition-colors duration-200"
-              title="Close PAL"
+              variant="ghost"
+              size="icon"
+              aria-label="Close PAL"
+              className="w-8 h-8"
             >
-              <X className="h-5 w-5" />
-            </button>
+              <X className="h-5 w-5 text-[hsl(var(--ubs-dark-grey))]" />
+            </Button>
           )}
         </div>
       </header>
